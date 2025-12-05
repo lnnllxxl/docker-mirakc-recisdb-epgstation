@@ -1,0 +1,13 @@
+docker-compose.yml
+
+# EPGStation のログ・一時データ
+epgstation/recorded/
+epgstation/encoded/
+epgstation/logs/
+epgstation/data/
+
+# mirakc のキャッシュ
+mirakc/data/
+mirakc/logs/
+
+*.log, tmp/
