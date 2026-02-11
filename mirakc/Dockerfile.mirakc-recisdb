@@ -10,8 +10,8 @@ RUN apt-get update && \
 
 # recisdb-rs (decode付きの新しめ)
 RUN cd /tmp \
-    && wget https://github.com/kazuki0824/recisdb-rs/releases/download/1.2.3/recisdb_1.2.3-1_amd64.deb \
+    && wget https://github.com/kazuki0824/recisdb-rs/releases/download/1.2.4/recisdb_1.2.4-1_amd64.deb \
     && apt-get update \
-    && apt-get install -y ./recisdb_1.2.3-1_amd64.deb \
-    && rm -f /tmp/recisdb_1.2.3-1_amd64.deb \
+    && apt-get install -y ./recisdb_1.2.4-1_amd64.deb \
+    && rm -f /tmp/recisdb_1.2.4-1_amd64.deb \
     && rm -rf /var/lib/apt/lists/*
