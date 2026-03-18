@@ -1,13 +1,22 @@
-# mirakc + recisdb + EPGStation Docker 環境
+# mirakc + recisdb + EPGStation + NVENC Docker 環境
 
 軽量な **mirakc** と **recisdb** に **EPGStation** を Docker でまとめた録画環境です。
 既存の軽量構成が見つけにくかったため、mirakc / recisdb / EPGStation を Github から取得し、
 Docker Compose で動作するように構築しました。
 
+EPGStationのエンコードでnvenc CUDAを使う方法は、使っているグラボやDriver、NVIDIA Container Toolkitのバージョンによって動かない場合もありますので、その場合は、通常版のEPGStationを再ビルドしてご使用ください。
+
+**【事前準備】**
 事前に **各種ドライバ・Docker・Docker Compose** をインストールしておいてください。
 以下の構成が動作する環境であれば準備は概ね完了しています。
 
 🔗 https://github.com/l3tnun/docker-mirakurun-epgstation
+
+**【2026/03追加：EPGStationにnvenc、CUDA追加】**
+EPGStationでのエンコードする時にNVIDIAのグラボが使えるようにNVENC対応するための、Dockerfileとエンコードスクリプト設定を追加いたしました。上記【事前準備】と合わせて、ホスト側にNVIDIA DriverとNVIDIA Container Toolkitをインストールしてください。DockerでNVIDIAのグラボを使うのに必要になります。
+
+ChatGPTによる参考：https://chatgpt.com/s/t_69ba59602118819196493d3c0bdba03a
+**※ご自分の環境にあわせて設定してください。**
 
 ## 📌 動作確認済み環境
 
@@ -15,11 +24,19 @@ Docker Compose で動作するように構築しました。
 - Docker / Docker Compose
 - チューナー: **PX-Q3PE5**
 - カードリーダー: **SCR3310/v2.0**
+- グラフィックボード:**GTX 1050 TI**
+- ドライバ:**nvidia-driver-570**
+- NVIDIA Container Toolkit **1.18.2**
+- FFmpeg **6.1.4(Docker内)**
+- NVIDIA-SMI **570.211.01**
+- Driver Version: **570.211.01**
+- CUDA Version: **12.8
+  ※上記以外の環境で動作確認していません。**
 
 ## 📌 ダウンロード
 
 ```bash
-git clone https://github.com/lnnllxxl/docker-mirakc-recisdb-epgstation
+git clone -b variant/nvenc https://github.com/lnnllxxl/docker-mirakc-recisdb-epgstation
 cd docker-mirakc-recisdb-epgstation
 ```
 
@@ -44,6 +61,8 @@ cp mirakc/config.sample.yml mirakc/config.yml
 ```bash
 cp epgstation/config/config.yml.template epgstation/config/config.yml
 cp epgstation/config/enc.js.template epgstation/config/enc.js
+cp epgstation/config/enc_nvenc.js.template epgstation/config/enc_nvenc.js
+cp epgstation/config/enc_nvenc-cuda.js.template epgstation/config/enc_nvenc-cuda.js.template
 cp epgstation/config/epgUpdaterLogConfig.sample.yml epgstation/config/epgUpdaterLogConfig.yml
 cp epgstation/config/operatorLogConfig.sample.yml epgstation/config/operatorLogConfig.yml
 cp epgstation/config/serviceLogConfig.sample.yml epgstation/config/serviceLogConfig.yml
@@ -75,11 +94,14 @@ cp epgstation/config/serviceLogConfig.sample.yml epgstation/config/serviceLogCon
 
 ## build
 
-起動する前にrecisdをインストールしたmirakcをビルドしてください。
+起動する前にrecisdをインストールしたmirakcと
+nvencを使うepgstationをビルドしてください。
 （ビルドすることでmirakcイメージにrecisdとPCカードのツールがインスールされます。）
 
 ```
 docker compose build mirakc
+
+docker compose build epgstation
 ```
 
 ## 📌 起動
@@ -134,6 +156,8 @@ http://<サーバーIP>:8888
 - mirakc コンテナへ recisdb-rs を統合https://www.kreuzen.org/2025/03/18/2025%E5%B9%B4%E7%89%88-mirack%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB/
 - ISDBScanner
   https://github.com/tsukumijima/ISDBScanner
+- **[EPGStation-nvenc-docker](https://github.com/kazuki0824/EPGStation-nvenc-docker)**
+  https://github.com/kazuki0824/EPGStation-nvenc-docker
 
 ## 📌 最後に
 
