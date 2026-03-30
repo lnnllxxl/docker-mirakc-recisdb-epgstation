@@ -16,7 +16,7 @@ services:
     ports:
       - 40772:40772
     volumes:
-      - mirakc-epg:/var/lib/mirakc/epg
+      - ./mirakc/epg:/var/lib/mirakc/epg
       - ./mirakc/config.yml:/etc/mirakc/config.yml:ro
       - miraview-html:/var/www/miraview:ro
     environment:

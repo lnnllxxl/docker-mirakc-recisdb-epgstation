@@ -41,6 +41,16 @@ encode:
       suffix: .mp4
       rate: 4.0
 
+    - name: H264_NVENC
+      cmd: '%NODE% %ROOT%/config/enc_nvenc.js'
+      suffix: .mp4
+      rate: 4.0
+      
+    - name: H264_NVENC_CUDA
+      cmd: '%NODE% %ROOT%/config/enc_nvenc-cuda.js'
+      suffix: .mp4
+      rate: 4.0
+      
 urlscheme:
     m2ts:
         ios: vlc-x-callback://x-callback-url/stream?url=PROTOCOL%3A%2F%2FADDRESS
