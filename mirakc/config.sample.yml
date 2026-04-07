@@ -8,6 +8,9 @@ server:
 epg:
   cache-dir: /var/lib/mirakc/epg
 
+recording:
+  basedir: /var/lib/mirakc/recording
+  
 channels:
 
 tuners:
