@@ -16,7 +16,7 @@ services:
     ports:
       - 40772:40772
     volumes:
-      - ./mirakc/epg:/var/lib/mirakc/epg
+      - mirakc-epg:/var/lib/mirakc/epg
       - ./mirakc/config.yml:/etc/mirakc/config.yml:ro
       - miraview-html:/var/www/miraview:ro
       - ./recorded:/var/lib/mirakc/recording
@@ -82,6 +82,9 @@ services:
     restart: always
 
 volumes:
+  mirakc-epg:
+    name: mirakc_epg
+    driver: local
   miraview-html:
     name: miraview_html
     driver: local
