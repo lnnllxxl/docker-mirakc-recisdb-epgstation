@@ -1,0 +1,113 @@
+# ===== build stage =====
+#FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS ffmpeg-build
+# nvidia/cuda:base だったり、CUDA を入れてない素の Debian/Ubuntu だと NPP がありません。
+FROM nvidia/cuda:12.8.1-devel-ubuntu20.04 AS ffmpeg-build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CCACHE_DIR=/opt/.ccache
+ENV USE_CCACHE=1
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+      make gcc g++ git automake curl wget autoconf build-essential libtool \
+      pkg-config texinfo zlib1g-dev yasm ccache \
+      libx264-dev libmp3lame-dev libopus-dev libvpx-dev libx265-dev libnuma-dev \
+      libass-dev libfreetype6-dev libvorbis-dev libtheora-dev \
+      libaribb24-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+SHELL ["/bin/bash", "-c"]
+
+# ★ FFmpegを新しめへ。7系を使わないのはエンコード時にプログレスバーが出ないため
+#ENV FFMPEG_VERSION=7.0.2
+ENV FFMPEG_VERSION=6.1.4
+
+
+# ★ 1050Ti は sm_61。必要なら compute_61 も入れておく（将来互換）
+ENV CUDA_NVCCFLAGS="-gencode arch=compute_61,code=sm_61 -gencode arch=compute_61,code=compute_61 -O2"
+
+RUN --mount=type=cache,target=/opt/.ccache \
+    set -eux; \
+    # nv-codec-headers
+    git clone --depth=1 --branch n12.1.14.0 https://github.com/FFmpeg/nv-codec-headers.git /tmp/nv-codec-headers \
+ && make -C /tmp/nv-codec-headers install \
+ && rm -rf /tmp/nv-codec-headers && \
+    \
+    # ffmpeg build
+    mkdir -p /tmp/ffmpeg && cd /tmp/ffmpeg && \
+    curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2" | tar -xj --strip-components=1 && \
+    \
+    ./configure \
+      --prefix=/ffmpeg \
+      --disable-shared \
+      --pkg-config-flags=--static \
+      --enable-gpl \
+      --enable-nonfree \
+      --disable-debug \
+      --disable-doc \
+      \
+      --enable-libass \
+      --enable-libfreetype \
+      --enable-libmp3lame \
+      --enable-libopus \
+      --enable-libtheora \
+      --enable-libvorbis \
+      --enable-libvpx \
+      --enable-libx264 \
+      --enable-libx265 \
+      --enable-version3 \
+      --enable-libaribb24 \
+      \
+      # ★ CUDA/NVENC/NPP
+      --enable-cuda-nvcc \
+      --enable-ffnvcodec \
+      --enable-nvenc \
+      --enable-cuvid \
+      --enable-libnpp \
+      --extra-cflags=-I/usr/local/cuda/include \
+      --extra-ldflags=-L/usr/local/cuda/lib64 \
+      --nvccflags="${CUDA_NVCCFLAGS}" \
+      \
+      --cc="ccache cc" --cxx="ccache c++" \
+    && \
+    make -j"$(nproc)" && make install
+
+
+# ===== runtime stage =====
+FROM nvidia/cuda:12.8.1-runtime-ubuntu20.04
+
+ENV NODE_VERSION=18
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN set -eux; \
+  cat /etc/os-release; \
+  apt-get update; \
+  apt-cache policy libvpx6 libvpx7 libvpx8 libvpx9 || true; \
+  apt-cache search '^libvpx[0-9]$' || true
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl \
+    libx264-155 libx265-179 libnuma1 \
+    libasound2 libass9 libvorbisenc2 libtheora0 libmp3lame0 libopus0 libvpx6 \
+    libaribb24-0 \
+  && rm -rf /var/lib/apt/lists/*
+
+# node (Node16はEOLだけど、いったん現状維持)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends wget && \
+    wget "https://deb.nodesource.com/setup_${NODE_VERSION}.x" -O - | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    apt-get purge -y wget && rm -rf /var/lib/apt/lists/*
+
+COPY --from=l3tnun/epgstation:master-debian /app /app/
+COPY --from=l3tnun/epgstation:master-debian /app/client /app/client/
+COPY --from=ffmpeg-build /ffmpeg /usr/local/
+COPY config/ /app/config
+RUN chmod 444 /app/src -R
+
+# dry run
+RUN /usr/local/bin/ffmpeg -hide_banner -filters | grep -E "yadif(_cuda)?|scale_cuda|hwupload_cuda" || true
+
+EXPOSE 8888
+WORKDIR /app
+ENTRYPOINT ["npm"]
+CMD ["start"]

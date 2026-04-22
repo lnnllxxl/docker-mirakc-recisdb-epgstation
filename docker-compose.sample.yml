@@ -1,0 +1,95 @@
+services:
+  mirakc:
+    build:
+      context: .
+      dockerfile: ./mirakc/Dockerfile.mirakc-recisdb
+    container_name: mirakc-recisdb
+    #user: root
+    init: true
+    #privileged: true
+    restart: always
+    entrypoint: sh -c 'pcscd --disable-polkit && /usr/local/bin/mirakc'
+    devices:
+      - /dev/bus:/dev/bus
+      # チューナーデバイス
+      #例- /dev/px4video0:/dev/px4video0
+    ports:
+      - 40772:40772
+    volumes:
+      - mirakc-epg:/var/lib/mirakc/epg
+      - ./mirakc/config.yml:/etc/mirakc/config.yml:ro
+      - miraview-html:/var/www/miraview:ro
+      - ./recorded:/var/lib/mirakc/recording
+    environment:
+      TZ: Asia/Tokyo
+      RUST_LOG: info
+    depends_on:
+      - miraview
+  miraview:
+    image: docker.io/mirakc/mirakc:alpine
+    container_name: miraview-loader
+    restart: always
+    volumes:
+      - miraview-html:/var/www/miraview
+    working_dir: /var/www/miraview
+    environment:
+      MIRAVIEW_VERSION: v0.1.2    # ここのバージョンは適宜変更
+    entrypoint: ash
+    command: -c "curl -L https://github.com/maeda577/miraview/releases/download/$$MIRAVIEW_VERSION/build.tar.gz | tar -zxvf -"
+
+  mysql:
+    image: mariadb:11.1
+    volumes:
+      - mysqldb:/var/lib/mysql
+    user: "0:0"   # = root
+    environment:
+      MYSQL_USER: epgstation
+      MYSQL_PASSWORD: epgstation
+      MYSQL_ROOT_PASSWORD: epgstation
+      MYSQL_DATABASE: epgstation
+      TZ: "Asia/Tokyo"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: always
+
+  epgstation:
+    build:
+      context: "./epgstation"
+      #通常版（非GPU）
+      #dockerfile: "debian.Dockerfile"
+      #nvenc-cuda対応
+      dockerfile: "Dockerfile.epgstation-nvenc"
+    container_name: epgstation-nvenc
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [compute, utility, video]
+    volumes:
+      - ./epgstation/config:/app/config
+      - ./epgstation/data:/app/data
+      - ./epgstation/thumbnail:/app/thumbnail
+      - ./epgstation/logs:/app/logs
+      # 録画保存ディレクトリ
+      - ./recorded:/app/recorded
+    environment:
+      TZ: "Asia/Tokyo"
+    depends_on:
+      - mirakc
+      - mysql
+    ports:
+      - "8888:8888"
+      - "8889:8889"
+    restart: always
+
+volumes:
+  mysqldb:
+    name: mysqldb
+    driver: local
+  mirakc-epg:
+    name: mirakc_epg
+    driver: local
+  miraview-html:
+    name: miraview_html
+    driver: local

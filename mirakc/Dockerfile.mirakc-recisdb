@@ -1,0 +1,17 @@
+# Debian/Ubuntu 系の mirakc を使う（.deb を入れるため）
+FROM mirakc/mirakc:main-debian
+
+USER root
+
+# .deb を落としてインストールするための準備
+RUN apt-get update && \
+    apt-get install -y wget ca-certificates pcscd pcsc-tools libpcsclite-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# recisdb-rs (decode付きの新しめ)
+RUN cd /tmp \
+    && wget https://github.com/kazuki0824/recisdb-rs/releases/download/1.2.4/recisdb_1.2.4-1_amd64.deb \
+    && apt-get update \
+    && apt-get install -y ./recisdb_1.2.4-1_amd64.deb \
+    && rm -f /tmp/recisdb_1.2.4-1_amd64.deb \
+    && rm -rf /var/lib/apt/lists/*
