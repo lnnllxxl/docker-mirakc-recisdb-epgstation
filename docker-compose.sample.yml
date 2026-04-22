@@ -23,6 +23,8 @@ services:
     environment:
       TZ: Asia/Tokyo
       RUST_LOG: info
+    depends_on:
+      - miraview
   miraview:
     image: docker.io/mirakc/mirakc:alpine
     container_name: miraview-loader
@@ -38,7 +40,7 @@ services:
   mysql:
     image: mariadb:11.1
     volumes:
-      - ./mysqldb:/var/lib/mysql
+      - mysqldb:/var/lib/mysql
     user: "0:0"   # = root
     environment:
       MYSQL_USER: epgstation
@@ -82,6 +84,9 @@ services:
     restart: always
 
 volumes:
+  mysqldb:
+    name: mysqldb
+    driver: local
   mirakc-epg:
     name: mirakc_epg
     driver: local
